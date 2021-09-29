@@ -19,10 +19,3 @@ scala target/scala-2.13/ttqg-assembly-*.*.jar
 ```
 
 presenting the usage text.
-
-## Parameters
-
-|-----------|-------------|
-| Parameter | Description |
-| &#8211;&#8211;| |
-|-----------|-------------|
