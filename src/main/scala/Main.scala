@@ -80,6 +80,10 @@ object Main extends App {
         .text(
           "size of knowledge base (consistent/true/false/indeterminate/equivalent - set size, entailment - knowledge base size, validity - premise set size) [default 1]"
         ),
+      opt[Unit]("antiTest")
+        .abbr("at")
+        .action((_, c) => c.copy(antiTest = true))
+        .text("generate negative test cases"),
       opt[Unit]("useAllAtoms")
         .abbr("all")
         .action((_, c) => c.copy(useAllAtoms = true))
@@ -158,6 +162,7 @@ object Main extends App {
           List
             .fill(config.numberOfCases)(
               KnowledgeBaseGenerator.generateConsistent(
+                config.antiTest,
                 config.atoms,
                 config.size,
                 config.duplicateMax,
@@ -175,6 +180,7 @@ object Main extends App {
           List
             .fill(config.numberOfCases)(
               KnowledgeBaseGenerator.generateEntailment(
+                config.antiTest,
                 config.atoms,
                 config.size,
                 config.duplicateMax,
@@ -192,6 +198,7 @@ object Main extends App {
           List
             .fill(config.numberOfCases)(
               KnowledgeBaseGenerator.generateArgument(
+                config.antiTest,
                 config.atoms,
                 config.size,
                 config.duplicateMax,
@@ -209,6 +216,7 @@ object Main extends App {
           List
             .fill(config.numberOfCases)(
               KnowledgeBaseGenerator.generateEquivalent(
+                config.antiTest,
                 config.atoms,
                 config.size,
                 config.duplicateMax,
@@ -225,6 +233,7 @@ object Main extends App {
           List
             .fill(config.numberOfCases)(
               KnowledgeBaseGenerator.generateTruthFunctional(
+                config.antiTest,
                 TruthFunctional.True,
                 config.atoms,
                 config.size,
@@ -244,6 +253,7 @@ object Main extends App {
           List
             .fill(config.numberOfCases)(
               KnowledgeBaseGenerator.generateTruthFunctional(
+                config.antiTest,
                 TruthFunctional.False,
                 config.atoms,
                 config.size,
@@ -263,6 +273,7 @@ object Main extends App {
           List
             .fill(config.numberOfCases)(
               KnowledgeBaseGenerator.generateTruthFunctional(
+                config.antiTest,
                 TruthFunctional.Indeterminate,
                 config.atoms,
                 config.size,

@@ -16,10 +16,11 @@ case class Config(
     size: Int = 1,
     atoms: Set[Atom] = Set(),
     filename: String = "",
+    antiTest: Boolean = false,
     useAllAtoms: Boolean = false,
     duplicateMax: Int = 0,
     literalsOnly: Boolean = false,
     unaryOperators: Set[UnaryOperator.Value] = UnaryOperator.values,
     binaryOperators: Set[BinaryOperator.Value] = BinaryOperator.values,
-    maxRecDepth: Int = 10000
+    maxRecDepth: Int = 1000
 )

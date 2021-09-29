@@ -16,6 +16,7 @@ import java.util.concurrent.ForkJoinPool
 object KnowledgeBaseGenerator {
 
   def generateConsistent(
+      antiTest: Boolean,
       atoms: Set[Atom],
       size: Int,
       duplicateMax: Int,
@@ -42,13 +43,23 @@ object KnowledgeBaseGenerator {
         )
         .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
     )
-    if (
-      PropertyChecking
-        .getTruthFunctionalness(kb)
-        .equals(TruthFunctional.Indeterminate) && kb.isConsistent()
-    )
-      return Future(Some(kb))
+    if (!antiTest) {
+      if (
+        PropertyChecking
+          .getTruthFunctionalness(kb)
+          .equals(TruthFunctional.Indeterminate) && kb.isConsistent()
+      )
+        return Future(Some(kb))
+    } else {
+      if (
+        PropertyChecking
+          .getTruthFunctionalness(kb)
+          .equals(TruthFunctional.Indeterminate) && !kb.isConsistent()
+      )
+        return Future(Some(kb))
+    }
     return generateConsistent(
+      antiTest,
       atoms,
       size,
       duplicateMax,
@@ -61,6 +72,7 @@ object KnowledgeBaseGenerator {
   }
 
   def generateTruthFunctional(
+      antiTest: Boolean,
       property: TruthFunctional.Value,
       atoms: Set[Atom],
       size: Int,
@@ -87,9 +99,13 @@ object KnowledgeBaseGenerator {
         )
         .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
     )
-    if (PropertyChecking.getTruthFunctionalness(kb).equals(property))
+    if (!antiTest) {
+      if (PropertyChecking.getTruthFunctionalness(kb).equals(property))
+        return Future(Some(kb))
+    } else if (!PropertyChecking.getTruthFunctionalness(kb).equals(property))
       return Future(Some(kb))
     return generateTruthFunctional(
+      antiTest,
       property,
       atoms,
       size,
@@ -103,6 +119,7 @@ object KnowledgeBaseGenerator {
   }
 
   def generateEntailment(
+      antiTest: Boolean,
       atoms: Set[Atom],
       premiseSize: Int,
       duplicateMax: Int,
@@ -140,13 +157,23 @@ object KnowledgeBaseGenerator {
         ),
       Duration(5, TimeUnit.MINUTES)
     )
-    if (
-      PropertyChecking
-        .getTruthFunctionalness(kb)
-        .equals(TruthFunctional.Indeterminate) && kb.entails(conclusion)
-    )
-      return Future(Some(kb, conclusion))
+    if (!antiTest) {
+      if (
+        PropertyChecking
+          .getTruthFunctionalness(kb)
+          .equals(TruthFunctional.Indeterminate) && kb.entails(conclusion)
+      )
+        return Future(Some(kb, conclusion))
+    } else {
+      if (
+        PropertyChecking
+          .getTruthFunctionalness(kb)
+          .equals(TruthFunctional.Indeterminate) && !kb.entails(conclusion)
+      )
+        return Future(Some(kb, conclusion))
+    }
     return generateEntailment(
+      antiTest,
       atoms,
       premiseSize,
       duplicateMax,
@@ -159,6 +186,7 @@ object KnowledgeBaseGenerator {
   }
 
   def generateArgument(
+      antiTest: Boolean,
       atoms: Set[Atom],
       premiseSize: Int,
       duplicateMax: Int,
@@ -196,20 +224,37 @@ object KnowledgeBaseGenerator {
         ),
       Duration(5, TimeUnit.MINUTES)
     )
-    if (
-      PropertyChecking
-        .getTruthFunctionalness(kb)
-        .equals(TruthFunctional.Indeterminate) &&
-      PropertyChecking
-        .getTruthFunctionalness(conclusion)
-        .equals(TruthFunctional.Indeterminate) &&
-      PropertyChecking.isValid(
-        kb,
-        conclusion
+    if (!antiTest) {
+      if (
+        PropertyChecking
+          .getTruthFunctionalness(kb)
+          .equals(TruthFunctional.Indeterminate) &&
+        PropertyChecking
+          .getTruthFunctionalness(conclusion)
+          .equals(TruthFunctional.Indeterminate) &&
+        PropertyChecking.isValid(
+          kb,
+          conclusion
+        )
       )
-    )
-      return Future(Some(kb, conclusion))
+        return Future(Some(kb, conclusion))
+    } else {
+      if (
+        PropertyChecking
+          .getTruthFunctionalness(kb)
+          .equals(TruthFunctional.Indeterminate) &&
+        PropertyChecking
+          .getTruthFunctionalness(conclusion)
+          .equals(TruthFunctional.Indeterminate) &&
+        !PropertyChecking.isValid(
+          kb,
+          conclusion
+        )
+      )
+        return Future(Some(kb, conclusion))
+    }
     return generateArgument(
+      antiTest,
       atoms,
       premiseSize,
       duplicateMax,
@@ -222,6 +267,7 @@ object KnowledgeBaseGenerator {
   }
 
   def generateEquivalent(
+      antiTest: Boolean,
       atoms: Set[Atom],
       size: Int,
       duplicateMax: Int,
@@ -249,12 +295,21 @@ object KnowledgeBaseGenerator {
         .map(Await.result(_, Duration(3, TimeUnit.MINUTES)))
     )
     val front = kb.iterator.next()
-    if (
-      kb.iterator
-        .forall(p => PropertyChecking.isTruthFunctionallyEquivalent(front, p))
-    )
-      return Future(Some(kb))
+    if (!antiTest) {
+      if (
+        kb.iterator
+          .forall(p => PropertyChecking.isTruthFunctionallyEquivalent(front, p))
+      )
+        return Future(Some(kb))
+    } else {
+      if (
+        !kb.iterator
+          .forall(p => PropertyChecking.isTruthFunctionallyEquivalent(front, p))
+      )
+        return Future(Some(kb))
+    }
     return generateEquivalent(
+      antiTest,
       atoms,
       size,
       duplicateMax,
