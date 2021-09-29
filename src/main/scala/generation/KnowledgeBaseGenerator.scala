@@ -3,44 +3,56 @@ package ttqg.generation
 import ttqg.logic._
 import scala.util.Random
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.Future
+import scala.util.Success
+import scala.concurrent.Await
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
+import java.util.concurrent.ExecutorService
+import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.Implicits.global
+import java.util.concurrent.ForkJoinPool
 
 object KnowledgeBaseGenerator {
 
   def generateConsistent(
       atoms: Set[Atom],
       size: Int,
+      duplicateMax: Int,
       useAllAtoms: Boolean,
-      duplicateAtoms: Boolean,
       atomOnlyUnary: Boolean,
       unaryOperators: Set[UnaryOperator.Value],
       binaryOperators: Set[BinaryOperator.Value],
       maxRecDepth: Int = 10000
-  ): Option[KnowledgeBase] = {
+  ): Future[Option[KnowledgeBase]] = {
     if (maxRecDepth < 1)
-      return None
+      return Future(None)
     val kb = new KnowledgeBase(
-      List.fill(size)(
-        FormulaGenerator.generateFormula(
-          atoms,
-          useAllAtoms,
-          duplicateAtoms,
-          atomOnlyUnary,
-          unaryOperators,
-          binaryOperators
+      List
+        .fill(size)(
+          FormulaGenerator
+            .generateFormula(
+              atoms,
+              duplicateMax,
+              useAllAtoms,
+              atomOnlyUnary,
+              unaryOperators,
+              binaryOperators
+            )
         )
-      )
+        .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
     )
     if (
       PropertyChecking
         .getTruthFunctionalness(kb)
         .equals(TruthFunctional.Indeterminate) && kb.isConsistent()
     )
-      return Some(kb)
+      return Future(Some(kb))
     return generateConsistent(
       atoms,
       size,
+      duplicateMax,
       useAllAtoms,
-      duplicateAtoms,
       atomOnlyUnary,
       unaryOperators,
       binaryOperators,
@@ -52,36 +64,37 @@ object KnowledgeBaseGenerator {
       property: TruthFunctional.Value,
       atoms: Set[Atom],
       size: Int,
+      duplicateMax: Int,
       useAllAtoms: Boolean,
-      duplicateAtoms: Boolean,
       atomOnlyUnary: Boolean,
       unaryOperators: Set[UnaryOperator.Value],
       binaryOperators: Set[BinaryOperator.Value],
       maxRecDepth: Int = 10000
-  ): Option[KnowledgeBase] = {
+  ): Future[Option[KnowledgeBase]] = {
     if (maxRecDepth < 1)
-      return None
+      return Future(None)
     val kb = new KnowledgeBase(
-      List.fill(size)(
-        FormulaGenerator.generateFormula(
-          atoms,
-          useAllAtoms,
-          duplicateAtoms,
-          atomOnlyUnary,
-          unaryOperators,
-          binaryOperators
+      List
+        .fill(size)(
+          FormulaGenerator.generateFormula(
+            atoms,
+            duplicateMax,
+            useAllAtoms,
+            atomOnlyUnary,
+            unaryOperators,
+            binaryOperators
+          )
         )
-      )
+        .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
     )
-
     if (PropertyChecking.getTruthFunctionalness(kb).equals(property))
-      return Some(kb)
+      return Future(Some(kb))
     return generateTruthFunctional(
       property,
       atoms,
       size,
+      duplicateMax,
       useAllAtoms,
-      duplicateAtoms,
       atomOnlyUnary,
       unaryOperators,
       binaryOperators,
@@ -92,46 +105,52 @@ object KnowledgeBaseGenerator {
   def generateEntailment(
       atoms: Set[Atom],
       premiseSize: Int,
+      duplicateMax: Int,
       useAllAtoms: Boolean,
-      duplicateAtoms: Boolean,
       atomOnlyUnary: Boolean,
       unaryOperators: Set[UnaryOperator.Value],
       binaryOperators: Set[BinaryOperator.Value],
       maxRecDepth: Int = 10000
-  ): Option[(KnowledgeBase, Formula)] = {
+  ): Future[Option[(KnowledgeBase, Formula)]] = {
     if (maxRecDepth < 1)
-      return None
+      return Future(None)
     val kb = new KnowledgeBase(
-      List.fill(premiseSize)(
-        FormulaGenerator.generateFormula(
+      List
+        .fill(premiseSize)(
+          FormulaGenerator.generateFormula(
+            atoms,
+            duplicateMax,
+            useAllAtoms,
+            atomOnlyUnary,
+            unaryOperators,
+            binaryOperators
+          )
+        )
+        .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
+    )
+    val conclusion: Formula = Await.result(
+      FormulaGenerator
+        .generateFormula(
           atoms,
+          duplicateMax,
           useAllAtoms,
-          duplicateAtoms,
           atomOnlyUnary,
           unaryOperators,
           binaryOperators
-        )
-      )
-    )
-    val conclusion = FormulaGenerator.generateFormula(
-      atoms,
-      useAllAtoms,
-      duplicateAtoms,
-      atomOnlyUnary,
-      unaryOperators,
-      binaryOperators
+        ),
+      Duration(5, TimeUnit.MINUTES)
     )
     if (
       PropertyChecking
         .getTruthFunctionalness(kb)
         .equals(TruthFunctional.Indeterminate) && kb.entails(conclusion)
     )
-      return Some(kb, conclusion)
+      return Future(Some(kb, conclusion))
     return generateEntailment(
       atoms,
       premiseSize,
+      duplicateMax,
       useAllAtoms,
-      duplicateAtoms,
       atomOnlyUnary,
       unaryOperators,
       binaryOperators,
@@ -142,34 +161,40 @@ object KnowledgeBaseGenerator {
   def generateArgument(
       atoms: Set[Atom],
       premiseSize: Int,
+      duplicateMax: Int,
       useAllAtoms: Boolean,
-      duplicateAtoms: Boolean,
       atomOnlyUnary: Boolean,
       unaryOperators: Set[UnaryOperator.Value],
       binaryOperators: Set[BinaryOperator.Value],
       maxRecDepth: Int = 10000
-  ): Option[(KnowledgeBase, Formula)] = {
+  ): Future[Option[(KnowledgeBase, Formula)]] = {
     if (maxRecDepth < 1)
-      return None
+      return Future(None)
     val kb = new KnowledgeBase(
-      List.fill(premiseSize)(
-        FormulaGenerator.generateFormula(
+      List
+        .fill(premiseSize)(
+          FormulaGenerator.generateFormula(
+            atoms,
+            duplicateMax,
+            useAllAtoms,
+            atomOnlyUnary,
+            unaryOperators,
+            binaryOperators
+          )
+        )
+        .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
+    )
+    val conclusion: Formula = Await.result(
+      FormulaGenerator
+        .generateFormula(
           atoms,
+          duplicateMax,
           useAllAtoms,
-          duplicateAtoms,
           atomOnlyUnary,
           unaryOperators,
           binaryOperators
-        )
-      )
-    )
-    val conclusion = FormulaGenerator.generateFormula(
-      atoms,
-      useAllAtoms,
-      duplicateAtoms,
-      atomOnlyUnary,
-      unaryOperators,
-      binaryOperators
+        ),
+      Duration(5, TimeUnit.MINUTES)
     )
     if (
       PropertyChecking
@@ -183,12 +208,12 @@ object KnowledgeBaseGenerator {
         conclusion
       )
     )
-      return Some(kb, conclusion)
+      return Future(Some(kb, conclusion))
     return generateArgument(
       atoms,
       premiseSize,
+      duplicateMax,
       useAllAtoms,
-      duplicateAtoms,
       atomOnlyUnary,
       unaryOperators,
       binaryOperators,
@@ -199,41 +224,40 @@ object KnowledgeBaseGenerator {
   def generateEquivalent(
       atoms: Set[Atom],
       size: Int,
-      duplicateAtoms: Boolean,
+      duplicateMax: Int,
       atomOnlyUnary: Boolean,
       unaryOperators: Set[UnaryOperator.Value],
       binaryOperators: Set[BinaryOperator.Value],
       maxRecDepth: Int = 10000
-  ): Option[KnowledgeBase] = {
+  ): Future[Option[KnowledgeBase]] = {
     if (size == 0)
-      return Some(new KnowledgeBase())
+      return Future(Some(new KnowledgeBase()))
     if (maxRecDepth < 1)
-      return None
+      return Future(None)
     val kb = new KnowledgeBase(
-      List.fill(size)(
-        FormulaGenerator.generateFormula(
-          atoms,
-          true,
-          duplicateAtoms,
-          atomOnlyUnary,
-          unaryOperators,
-          binaryOperators
+      List
+        .fill(size)(
+          FormulaGenerator.generateFormula(
+            atoms,
+            duplicateMax,
+            true,
+            atomOnlyUnary,
+            unaryOperators,
+            binaryOperators
+          )
         )
-      )
+        .map(Await.result(_, Duration(3, TimeUnit.MINUTES)))
     )
     val front = kb.iterator.next()
     if (
-      PropertyChecking
-        .getTruthFunctionalness(kb)
-        .equals(TruthFunctional.Indeterminate) &&
       kb.iterator
         .forall(p => PropertyChecking.isTruthFunctionallyEquivalent(front, p))
     )
-      return Some(kb)
+      return Future(Some(kb))
     return generateEquivalent(
       atoms,
       size,
-      duplicateAtoms,
+      duplicateMax,
       atomOnlyUnary,
       unaryOperators,
       binaryOperators,

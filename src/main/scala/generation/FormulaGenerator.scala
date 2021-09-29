@@ -1,8 +1,10 @@
 package ttqg.generation
 
 import ttqg.logic._
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
+import scala.concurrent.Future
 
 object FormulaGenerator {
 
@@ -37,12 +39,12 @@ object FormulaGenerator {
 
   def generateFormula(
       atoms: Set[Atom],
+      duplicateMax: Int,
       useAllAtoms: Boolean,
-      duplicateAtoms: Boolean,
       atomOnlyUnary: Boolean,
       unaryOperators: Set[UnaryOperator.Value] = UnaryOperator.values,
       binaryOperators: Set[BinaryOperator.Value] = BinaryOperator.values
-  ): Formula = {
+  ): Future[Formula] = {
     val atomListBuffer =
       if (useAllAtoms)
         ListBuffer[Atom](atoms.toSeq: _*)
@@ -50,14 +52,19 @@ object FormulaGenerator {
         Random
           .shuffle(ListBuffer[Atom](atoms.toSeq: _*))
           .take(Random.between(1, atoms.size + 1))
-    if (duplicateAtoms)
-      atomListBuffer.clone.foreach(a =>
+    val listBufferClone = atomListBuffer.clone()
+    (0 to duplicateMax).foreach(_ =>
+      listBufferClone.foreach(a =>
         if (Random.nextBoolean()) atomListBuffer += a
       )
-    return generateGenericFormula(atomListBuffer.toList, atomOnlyUnary)
-      .generateFormula(unaryOperators, binaryOperators)
+    )
+    return Future(
+      generateGenericFormula(atomListBuffer.toList, atomOnlyUnary)
+        .generateFormula(unaryOperators, binaryOperators)
+    )
   }
 
+  /*
   def generateEntailed(
       formula: Formula,
       useAllAtoms: Boolean,
@@ -96,8 +103,8 @@ object FormulaGenerator {
 
   def generateConsistent(
       formula: Formula,
+      duplicateMax: Int,
       useAllAtoms: Boolean,
-      duplicateAtoms: Boolean,
       atomOnlyUnary: Boolean,
       unaryOperators: Set[UnaryOperator.Value] = UnaryOperator.values,
       binaryOperators: Set[BinaryOperator.Value] = BinaryOperator.values
@@ -110,7 +117,7 @@ object FormulaGenerator {
       atomListBuffer =
         atomListBuffer.take(Random.between(1, atomListBuffer.size + 1))
     }
-    if (duplicateAtoms) {
+    for (i <- 0 to duplicateMax) {
       for (a <- atomListBuffer)
         if (r.nextBoolean())
           atomListBuffer += a
@@ -123,7 +130,7 @@ object FormulaGenerator {
     return generateConsistent(
       formula,
       useAllAtoms,
-      duplicateAtoms,
+      duplicateMax,
       atomOnlyUnary,
       unaryOperators,
       binaryOperators
@@ -233,4 +240,5 @@ object FormulaGenerator {
     )
   }
 
+   */
 }

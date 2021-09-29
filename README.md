@@ -4,7 +4,7 @@
 
 ## Building && Usage
 
-`ttqg` uses [sbt]{https://www.scala-sbt.org/1.x/docs/Setup.html} as the project build tool.
+`ttqg` uses [sbt](https://www.scala-sbt.org/1.x/docs/Setup.html) as the project build tool.
 
 From the project directory run
 
@@ -19,3 +19,10 @@ scala target/scala-2.13/ttqg-assembly-*.*.jar
 ```
 
 presenting the usage text.
+
+## Parameters
+
+|-----------|-------------|
+| Parameter | Description |
+| &#8211;&#8211;| |
+|-----------|-------------|

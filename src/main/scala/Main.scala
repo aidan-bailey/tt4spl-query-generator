@@ -3,9 +3,12 @@ import ttqg.generation._
 import scopt.OParser
 import java.io.PrintWriter
 import java.io.File
+import scala.concurrent.Await
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
+import scala.util.Success
 
 object Main extends App {
-
   val builder = OParser.builder[Config]
   val parser1 = {
     import builder._
@@ -68,23 +71,30 @@ object Main extends App {
         .action((x, c) => c.copy(filename = x))
         .text("output file name"),
       opt[Int]('s', "size")
-        .valueName("<int>")
+        .valueName("<size>")
         .action((x, c) => c.copy(size = x))
         .validate(x =>
           if (x > 0) success
-          else failure("Set size must be >0")
+          else failure("The value <size> must be >0")
         )
         .text(
           "size of knowledge base (consistent/true/false/indeterminate/equivalent - set size, entailment - knowledge base size, validity - premise set size) [default 1]"
         ),
       opt[Unit]("useAllAtoms")
+        .abbr("all")
         .action((_, c) => c.copy(useAllAtoms = true))
         .text("use every atom in each formula"),
-      opt[Unit]("duplicates")
-        .action((_, c) => c.copy(duplicateAtoms = true))
-        .text("use duplicate atoms"),
-      opt[Unit]("atomOnlyUnary")
-        .action((_, c) => c.copy(atomOnlyUnary = true))
+      opt[Int]('d', "duplicateMax")
+        .action((x, c) => c.copy(duplicateMax = x))
+        .valueName("<duplicateMax>")
+        .text("maximum number of duplicates")
+        .validate(x =>
+          if (x > -1) success
+          else failure("The value <duplicateMax> must be >0")
+        ),
+      opt[Unit]("literalsOnly")
+        .abbr("literals")
+        .action((_, c) => c.copy(literalsOnly = true))
         .text("only atoms can have unary connectives"),
       opt[Seq[String]]('u', "unaryOperators")
         .valueName("<op>,<op>...")
@@ -142,7 +152,7 @@ object Main extends App {
 // OParser.parse returns Option[Config]
   OParser.parse(parser1, args, Config()) match {
     case Some(config) =>
-      println("Generating Test Set")
+      println("Generating test set...")
       val result = config.property match {
         case Property.Consistent =>
           List
@@ -150,14 +160,15 @@ object Main extends App {
               KnowledgeBaseGenerator.generateConsistent(
                 config.atoms,
                 config.size,
+                config.duplicateMax,
                 config.useAllAtoms,
-                config.duplicateAtoms,
-                config.atomOnlyUnary,
+                config.literalsOnly,
                 config.unaryOperators,
                 config.binaryOperators,
                 config.maxRecDepth
               )
             )
+            .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
             .filter(_.isDefined)
             .map(_.get)
         case Property.Entailment =>
@@ -166,14 +177,15 @@ object Main extends App {
               KnowledgeBaseGenerator.generateEntailment(
                 config.atoms,
                 config.size,
+                config.duplicateMax,
                 config.useAllAtoms,
-                config.duplicateAtoms,
-                config.atomOnlyUnary,
+                config.literalsOnly,
                 config.unaryOperators,
                 config.binaryOperators,
                 config.maxRecDepth
               )
             )
+            .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
             .filter(_.isDefined)
             .map(_.get)
         case Property.Validity =>
@@ -182,14 +194,15 @@ object Main extends App {
               KnowledgeBaseGenerator.generateArgument(
                 config.atoms,
                 config.size,
+                config.duplicateMax,
                 config.useAllAtoms,
-                config.duplicateAtoms,
-                config.atomOnlyUnary,
+                config.literalsOnly,
                 config.unaryOperators,
                 config.binaryOperators,
                 config.maxRecDepth
               )
             )
+            .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
             .filter(_.isDefined)
             .map(_.get)
         case Property.TruthFunctionallyEquivalent =>
@@ -198,13 +211,14 @@ object Main extends App {
               KnowledgeBaseGenerator.generateEquivalent(
                 config.atoms,
                 config.size,
-                config.duplicateAtoms,
-                config.atomOnlyUnary,
+                config.duplicateMax,
+                config.literalsOnly,
                 config.unaryOperators,
                 config.binaryOperators,
                 config.maxRecDepth
               )
             )
+            .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
             .filter(_.isDefined)
             .map(_.get)
         case Property.TruthFunctionallyTrue => {
@@ -214,23 +228,66 @@ object Main extends App {
                 TruthFunctional.True,
                 config.atoms,
                 config.size,
+                config.duplicateMax,
                 config.useAllAtoms,
-                config.duplicateAtoms,
-                config.atomOnlyUnary,
+                config.literalsOnly,
                 config.unaryOperators,
                 config.binaryOperators,
                 config.maxRecDepth
               )
             )
+            .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
+            .filter(_.isDefined)
+            .map(_.get)
+        }
+        case Property.TruthFunctionallyFalse => {
+          List
+            .fill(config.numberOfCases)(
+              KnowledgeBaseGenerator.generateTruthFunctional(
+                TruthFunctional.False,
+                config.atoms,
+                config.size,
+                config.duplicateMax,
+                config.useAllAtoms,
+                config.literalsOnly,
+                config.unaryOperators,
+                config.binaryOperators,
+                config.maxRecDepth
+              )
+            )
+            .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
+            .filter(_.isDefined)
+            .map(_.get)
+        }
+        case Property.TruthFunctionallyIndeterminate => {
+          List
+            .fill(config.numberOfCases)(
+              KnowledgeBaseGenerator.generateTruthFunctional(
+                TruthFunctional.Indeterminate,
+                config.atoms,
+                config.size,
+                config.duplicateMax,
+                config.useAllAtoms,
+                config.literalsOnly,
+                config.unaryOperators,
+                config.binaryOperators,
+                config.maxRecDepth
+              )
+            )
+            .map(Await.result(_, Duration(5, TimeUnit.MINUTES)))
             .filter(_.isDefined)
             .map(_.get)
         }
       }
       println("Test set generated")
       if (config.filename.isEmpty())
-        println(result.mkString("\n"))
+        if (result.isEmpty)
+          println("Failed to find test cases")
+        else
+          println(result.mkString("\n"))
       else {
         val pw = new PrintWriter(new File(config.filename))
+        println("Written to " + config.filename)
         pw.write(result.mkString("\n"))
         pw.close()
         println("Written to " + config.filename)
